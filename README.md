@@ -10,15 +10,20 @@ This repository contains only the **code** (`.ipynb`). The datasets are too larg
 .
 ├── README.md
 └── Code/
-    ├── Data Scraping/                       
+    ├── Data Scraping/
+    │   ├── products_data.csv                # hasil scrape product
+    │   ├── reviews_data.csv                 # hasil scrape review     
     │   ├── Scraping_Products.ipynb          # scrape product data
     │   ├── Scraping_Reviews.ipynb           # scrape review data
     │   └── Scrape Data Link.txt             # Drive links: raw products, reviews, per-category
     │
-    ├── Data Preprocessing/                  
-    │   ├── Data_Preprocessing.ipynb         # EDA, cleaning, text preprocessing, remove unused column
-    │   ├── Ingredient_Name_Cleaning.ipynb   # fix ingredient names in the products and ingredients data
-    │   └── Preprocessing Data Link.txt      # Drive links: all preprocessing output data
+    ├── Data Preprocessing/
+    │   ├── data_after_cleaning
+    │   |    └── products_data_cleaned.csv
+    │   |    └── reviews_data_cleaned.csv      
+    │   ├── Product_and_Review_Preprocessing.ipynb       # EDA, cleaning, text preprocessing, remove unused column
+    │   ├── Ingredient_Name_Cleaning.ipynb               # fix ingredient names in the products and ingredients data
+    │   └── Preprocessing Data Link.txt                  # Drive links: all preprocessing output data
     │
     ├── Ingredients Manual Data Collection/  
     │    └── Ingredients Data Link.txt        # Drive links: ingredients_data (xlsx and csv) and changes
