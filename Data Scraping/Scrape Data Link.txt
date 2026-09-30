@@ -1,0 +1,15 @@
+DATA SCRAPING OUTPUTS (Google Drive)
+
+output_per_category/
+- essence_<timestamp>.csv
+- face_cream_&_lotion_<timestamp>.csv
+- face_wash_<timestamp>.csv
+- sunscreen_<timestamp>.csv
+- toner_<timestamp>.csv
+https://drive.google.com/drive/folders/1NzhvlTXLcI1r6E0wOA0fKhOKBbX_K34I?usp=sharing 
+
+products_data.csv
+https://drive.google.com/file/d/1NUiAwI-4WiHoDI-6fwgq2yd0uS4zIynz/view?usp=sharing 
+
+reviews_data.csv
+https://drive.google.com/file/d/1cyjGbjTO-jcZwTkCWZzqz0N4E_HZn0Ph/view?usp=sharing
