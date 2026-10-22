@@ -1,62 +1,71 @@
 # Skincare Product Analysis
 
-Code for the data pipeline of a skincare product analysis project, and the first analysis stage built on top of it, claim verification. The remaining analysis stages (sentiment, recommendation) are still in progress.
- 
-This repository contains only the **code** (`.ipynb`). The datasets are too large for GitHub, so they live on **Google Drive**. Each folder has a `... Data Link.txt` with the Drive links. **Download the data into the folder where its `Data Link.txt` sits**, then run the notebooks in the order below.
+Code and data for SkinSense, a skincare product analysis system built on product and review data from SOCO by Sociolla, plus ingredient data from EWG Skin Deep and INCIDecoder. It currently covers the data preparation pipeline, from scraping to text normalization (CODE 1 to CODE 6).
+
+Each folder holds its notebooks together with the data they produce, so the result of every step is available without rerunning it. You don't have to run everything from the start: each notebook reads the files saved by the steps before it, so you can start from any step.
 
 ## 📁 Folder structure
- 
+
 ```
 .
 ├── README.md
-└── Code/
-    ├── Data Scraping/
-    │   ├── products_data.csv                # hasil scrape product
-    │   ├── reviews_data.csv                 # hasil scrape review     
-    │   ├── Scraping_Products.ipynb          # scrape product data
-    │   ├── Scraping_Reviews.ipynb           # scrape review data
-    │   └── Scrape Data Link.txt             # Drive links: raw products, reviews, per-category
-    │
-    ├── Data Preprocessing/
-    │   ├── data_after_cleaning
-    │   |    └── products_data_cleaned.csv
-    │   |    └── reviews_data_cleaned.csv      
-    │   ├── Product_and_Review_Preprocessing.ipynb       # EDA, cleaning, text preprocessing, remove unused column
-    │   ├── Ingredient_Name_Cleaning.ipynb               # fix ingredient names in the products and ingredients data
-    │   └── Preprocessing Data Link.txt                  # Drive links: all preprocessing output data
-    │
-    ├── Ingredients Manual Data Collection/  
-    │    └── Ingredients Data Link.txt        # Drive links: ingredients_data (xlsx and csv) and changes
-    │
-    ├── Data Labeling/                       
-    │   ├── Krippendorff_Alpha_Claim.ipynb      # inter-annotator reliability (Krippendorff's alpha), then fill label_final
-    │   ├── Sentiment_Gold_Sampling.ipynb       # sample reviews to build the sentiment_gold template for manual labeling
-    │   ├── Krippendorff_Alpha_Sentiment.ipynb  # inter-annotator reliability (Krippendorff's alpha), then fill label_final
-    │   └── Labeling Data Link.txt              # Drive link: claim_gold, sentiment_gold (labeled gold standard)
-    │
-    └── Claim Verification/                  
-        ├── Claim_Verification_EWG.ipynb       # claim verification with EWG function text
-        ├── Claim_Verification_EWG_INCI.ipynb  # claim verification with EWG + INCI function text
-        └── Claim Verification Data Link.txt   # Drive links: saved_data_ewg, saved_data_ewg_inci (results)  
+├── Data Scraping/
+│   ├── Scraping_Products.ipynb                 # CODE 1: scrape product details per category
+│   ├── Scraping_Reviews.ipynb                  # CODE 2: merge the categories, then scrape reviews
+│   ├── output_per_category/                    # output of CODE 1 (one CSV per category)
+│   │   ├── essence_20260519_101758.csv
+│   │   ├── face_cream_&_lotion_20260519_141007.csv
+│   │   ├── face_wash_20260519_114631.csv
+│   │   ├── sunscreen_20260519_152735.csv
+│   │   └── toner_20260519_095412.csv
+│   ├── products_data.csv                       # output of CODE 2 (all categories merged)
+│   └── reviews_data.csv                        # output of CODE 2 (raw reviews)
+│
+├── Data Preprocessing/
+│   ├── EDA_Cleaning_and_Translation.ipynb      # CODE 3: EDA, data cleaning, translation
+│   ├── Ingredient_Extraction.ipynb             # CODE 4: ingredient list extraction with an LLM
+│   ├── Ingredient_Standardization.ipynb        # CODE 5: ingredient name standardization and data collection
+│   ├── Text_Normalization.ipynb                # CODE 6: text normalization
+│   │
+│   ├── data_after_cleaning/                    # output of CODE 3 (cleaning)
+│   │   ├── products_data_cleaned.csv
+│   │   └── reviews_data_cleaned.csv
+│   ├── data_after_translated/                  # output of CODE 3 (translation)
+│   │   ├── products_data_translated.csv
+│   │   └── reviews_data_translated.csv
+│   ├── data_after_ingredient_extraction/       # output of CODE 4
+│   │   └── products_ingredients_extracted.csv
+│   ├── data_after_ingredient_standardization/  # output of CODE 5
+│   │   ├── products_ingredients_standardized.csv
+│   │   └── ingredients_data.csv
+│   └── data_after_normalization/               # output of CODE 6 (final preprocessed data)
+│       ├── products_normalized.csv
+│       ├── reviews_normalized.csv
+│       └── ingredients_data_normalized.csv
+│
+└── Ingredients Manual Data Collection/
+    └── ingredients_data_collection.xlsx        # created by CODE 5, filled in by hand
 ```
 
+## ⚙️ Before you run
+
+- This repository stores its `.csv` and `.ipynb` files with Git LFS. Install Git LFS before cloning (`git lfs install`), otherwise those files come down as small pointer files instead of their real content.
+- Use Python 3.10 with Jupyter (for example in VS Code). The notebooks use relative paths, so each notebook must run from its own folder, which is the default in VS Code and Jupyter.
+- **CODE 4** calls an LLM through the Groq API, so it needs a Groq API key. The key is not included in this repository. Create a `.env` file next to this `README.md` with one line, `GROQ_API_KEY=your_key`, and never commit it.
+
 ## ▶️ Run order
-Run the data preparation steps first. After them, the **Claim Verification** and **Sentiment Analysis** tracks both build on the preprocessed data and do not depend on each other, so they can be run in parallel. Each track is numbered on its own, starting from 1. `Data_Preprocessing.ipynb` runs in two passes (the two Data Preprocessing steps below), because the manual ingredient collection happens in between. For each step, the files to download are listed in that folder's `... Data Link.txt`, and they go into that same folder.
- 
+
+Every notebook reads the output of the steps before it. Only the products go through CODE 4 and CODE 5. CODE 6 reads the reviews straight from the translation output of CODE 3.
+
 ### Data Preparation
-1. **Data Scraping** (`Scraping_Products.ipynb`, `Scraping_Reviews.ipynb`) — scrape the raw product and review data.
-2. **Data Preprocessing, pass 1** (`Data_Preprocessing.ipynb`) — run from the top through the ingredient extraction (EDA & data cleaning, translate data, emoji handling & replacement, ingredient list extraction using LLM), then stop before the text normalization section. This produces the list of unique ingredients to collect.
-3. **Ingredients Manual Data Collection** — using that list, collect `ingredients_data.xlsx` from EWG and INCIDecoder, then write the name fixes in `changes.xlsx`.
-4. **Ingredient Name Cleaning** (`Ingredient_Name_Cleaning.ipynb`) — apply `changes.xlsx` to the products and `ingredients_data`, producing `ingredients_data.csv`.
-5. **Data Preprocessing, pass 2** (`Data_Preprocessing.ipynb`) — run the rest from text normalization, remove the unused column, and save the preprocessed data.
+1. **Data Scraping** (CODE 1 `Scraping_Products.ipynb`, CODE 2 `Scraping_Reviews.ipynb`) — CODE 1 scrapes the product details (name, brand, description, ingredients, rating) of five categories on SOCO by Sociolla (Toner, Essence, Face Wash, Face Cream & Lotion, Sunscreen) into one CSV per category in `output_per_category/`. CODE 2 merges those files into `products_data.csv`, then scrapes every review of each product into `reviews_data.csv`. Both notebooks drive Google Chrome with Selenium.
+2. **EDA, Data Cleaning, and Translation** (CODE 3 `EDA_Cleaning_and_Translation.ipynb`) — explore the raw data, then clean it: missing values, duplicates, products whose description is identical to their ingredient list, products with no reviews (rating 0), non-Indonesian descriptions and reviews, products with fewer than 300 reviews, and emoji and symbols in the reviews. The result (40 products, 22,258 reviews) is saved to `data_after_cleaning/`. After that, the English words and phrases inside the descriptions and reviews are translated into Indonesian with `facebook/nllb-200-distilled-1.3B` on CPU (brand and product names are kept as they are) and saved to `data_after_translated/`. Translating the reviews takes about **14.5 hours**, so **don't use Run All on this notebook**. The translated files are already in `data_after_translated/`.
+3. **Ingredient Extraction** (CODE 4 `Ingredient_Extraction.ipynb`) — tidy each product's raw `ingredients` text, have an LLM (`openai/gpt-oss-120b` on Groq) split it into a list of ingredient names copied exactly as written, then check the result. Saves `data_after_ingredient_extraction/products_ingredients_extracted.csv`. LLM output is not guaranteed to be identical between runs, so after rerunning this step the collection file in step 5 may need new rows (CODE 5 lists them).
+4. **Ingredient Standardization, pass 1** (CODE 5 `Ingredient_Standardization.ipynb`) — Run All. It tidies the name format, gathers the unique ingredient names, and creates `Ingredients Manual Data Collection/ingredients_data_collection.xlsx`. The Excel file is only created when it doesn't exist yet, so a filled-in file is never overwritten. Nothing is saved at this point: the SAVE cell prints "Belum disimpan" until the Excel file is complete.
+5. **Ingredients Manual Data Collection** — fill in `ingredients_data_collection.xlsx` by hand, one row per extracted name.
+   - **Name standardization:** correct the name in `ingredient_name` (capitalization, typo, synonym, not an ingredient, missing comma) and write the reason in `keterangan`.
+   - **Data collection:** fill `function_ewg`, `hazard_level` (Low, Moderate, or High), and the two EWG URL columns from EWG Skin Deep, then `function_inci` and `ingredient_inci_url` from INCIDecoder. If an ingredient isn't on either site, write that in `catatan`.
 
-### Claim Verification track
-1. **Claim Gold Selection** — manually pick 50 products and put them into `claim_gold.xlsx` (the `pelabelan` tab) for the annotators to label. This is done by hand, without a notebook.
-2. **Data Labeling** (`Krippendorff_Alpha_Claim.ipynb`) — after the annotators label the `pelabelan` tab, this notebook measures inter-annotator reliability with Krippendorff's alpha and, once it passes the threshold, fills `label_final` by majority vote. The result is the gold standard used to evaluate claim verification.
-3. **Claim Verification** (`Claim_Verification_EWG.ipynb`, `Claim_Verification_EWG_INCI.ipynb`) — check whether each product's claimed effects are supported by its ingredients, in two variants (EWG only, and EWG + INCI). Each variant saves `claim_verification_result.csv` into its own folder, `saved_data_ewg` and `saved_data_ewg_inci`.
-
-### Sentiment Analysis track
-1. **Sentiment Gold Sampling** (`Sentiment_Gold_Sampling.ipynb`) — take a random sample of 70% of the preprocessed reviews and build `sentiment_gold.xlsx`, the empty template the annotators label manually.
-2. **Manual Labeling, shared part** — reviews R00001 to R10000 are labeled by all three annotators independently in the `pelabelan` tab, so their agreement can be measured.
-3. **Data Labeling** (`Krippendorff_Alpha_Sentiment.ipynb`) — measure inter-annotator reliability with Krippendorff's alpha on the reviews labeled by all three, then fill `label_final` by majority vote once it passes the threshold. The result is saved as `sentiment_gold_after_krippendorff_alpha.xlsx`, which keeps one agreed label per review and effect and drops the annotator columns.
-4. **Manual Labeling, divided part** — once the reliability check passes, the labeling rules are settled, so the remaining reviews (R10001 onward) are split evenly between the three annotators and labeled straight into the `label_final` column of `sentiment_gold_after_krippendorff_alpha.xlsx`, one annotator per review, until every sampled review is done.
+   The full rules, with examples, are in the MANUAL DATA COLLECTION section of CODE 5. You can fill the file in gradually and rerun CODE 5 to see the progress.
+6. **Ingredient Standardization, pass 2** (CODE 5) — Run All again. Every check in CHECK DATA COLLECTION FILE must show 0. Then the standard names are applied to every product's ingredient list, and the result is saved to `data_after_ingredient_standardization/` (`products_ingredients_standardized.csv` and `ingredients_data.csv`).
+7. **Text Normalization** (CODE 6 `Text_Normalization.ipynb`) — Run All. It cleans the noise from the descriptions and reviews (emoji, symbols, invisible characters, styled letters, NLLB codes such as `{\cH00FFFF}`, extra spaces) and tidies the ingredient function text (separators, capital letters, duplicate items). The final data is saved to `data_after_normalization/`.
