@@ -1,6 +1,6 @@
 # Skincare Product Analysis
 
-Code and data for SkinSense, a skincare product analysis system built on product and review data from SOCO by Sociolla, plus ingredient data from EWG Skin Deep and INCIDecoder. It currently covers data preparation, from scraping to text normalization (CODE 1 to CODE 6), claim verification (CODE 7A and CODE 8A), and the gold standard for sentiment classification (CODE 7B). The sentiment classification model and the recommendation part (CODE 8B and CODE 9) are not included yet.
+Code and data for SkinSense, a skincare product analysis system built on product and review data from SOCO by Sociolla, plus ingredient data from EWG Skin Deep and INCIDecoder. It currently covers data preparation, from scraping to text normalization (CODE 1 to CODE 6), claim verification (CODE 7A and CODE 8A), and sentiment classification (CODE 7B and CODE 8B). The recommendation part (CODE 9) is not included yet.
 
 Each folder holds its notebooks together with the data they produce, so the result of every step is available without rerunning it. You don't have to run everything from the start: each notebook reads the files saved by the steps before it, so you can start from any step.
 
@@ -54,12 +54,22 @@ Each folder holds its notebooks together with the data they produce, so the resu
 │   ├── sentiment_gold.xlsx                     # created by CODE 7B, filled in by three annotators
 │   └── sentiment_gold_final.csv                # output of CODE 7B (final labels)
 │
-└── Claim Verification/
-    ├── Claim_Verification.ipynb                # CODE 8A: claim verification with IndoSBERT
-    └── data_after_claim_verification/          # output of CODE 8A
-        ├── claim_verification_ewg.csv
-        ├── claim_verification_ewg_inci.csv
-        └── evaluation_metrics.csv
+├── Claim Verification/
+│   ├── Claim_Verification.ipynb                # CODE 8A: claim verification with IndoSBERT
+│   └── data_after_claim_verification/          # output of CODE 8A
+│       ├── claim_verification_ewg.csv
+│       ├── claim_verification_ewg_inci.csv
+│       └── evaluation_metrics.csv
+│
+└── Sentiment Classification/
+    ├── Sentiment_Classification.ipynb          # CODE 8B: multi-stage sentiment classification with IndoBERT
+    └── data_after_sentiment_classification/    # output of CODE 8B
+        ├── tuning_results.csv
+        ├── training_history.csv
+        ├── evaluation_per_stage.csv
+        ├── evaluation_cascade.csv
+        ├── test_predictions.csv
+        └── sentiment_classification.csv
 ```
 
 ## ⚙️ Before you run
@@ -68,10 +78,11 @@ Each folder holds its notebooks together with the data they produce, so the resu
 - Use Python 3.10 with Jupyter (for example in VS Code). The notebooks use relative paths, so each notebook must run from its own folder, which is the default in VS Code and Jupyter.
 - **CODE 4** calls an LLM through the Groq API, so it needs a Groq API key. The key is not included in this repository. Create a `.env` file next to this `README.md` with one line, `GROQ_API_KEY=your_key`, and never commit it.
 - **CODE 8A** downloads the IndoSBERT model (`firqaaa/indo-sentence-bert-base`) from Hugging Face and the NLTK `punkt` data on its first run, so it needs an internet connection the first time.
+- **CODE 8B** downloads IndoBERT (`indolem/indobert-base-uncased`) from Hugging Face on its first run, so it also needs an internet connection the first time. It trains on an NVIDIA GPU (on the CPU it would take days), which needs the CUDA build of PyTorch: a plain `pip install torch` on Windows installs the CPU build. RTX 50-series GPUs need a build for CUDA 12.8 or newer: `pip install --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128`. The trained models are saved in `Sentiment Classification/models/` (about 440 MB each) and are not included in this repository.
 
 ## ▶️ Run order
 
-Every notebook reads the output of the steps before it. Only the products go through CODE 4 and CODE 5. CODE 6 reads the reviews straight from the translation output of CODE 3. CODE 7A and CODE 8A read the products and ingredients saved by CODE 6, and CODE 8A also reads the final labels from CODE 7A. CODE 7B reads the reviews and products saved by CODE 6.
+Every notebook reads the output of the steps before it. Only the products go through CODE 4 and CODE 5. CODE 6 reads the reviews straight from the translation output of CODE 3. CODE 7A and CODE 8A read the products and ingredients saved by CODE 6, and CODE 8A also reads the final labels from CODE 7A. CODE 7B reads the reviews and products saved by CODE 6, and CODE 8B reads the final labels from CODE 7B.
 
 ### Data Preparation
 1. **Data Scraping** (CODE 1 `Scraping_Products.ipynb`, CODE 2 `Scraping_Reviews.ipynb`) — CODE 1 scrapes the product details (name, brand, description, ingredients, rating) of five categories on SOCO by Sociolla (Toner, Essence, Face Wash, Face Cream & Lotion, Sunscreen) into one CSV per category in `output_per_category/`. CODE 2 merges those files into `products_data.csv`, then scrapes every review of each product into `reviews_data.csv`. Both notebooks drive Google Chrome with Selenium.
@@ -103,3 +114,4 @@ Every notebook reads the output of the steps before it. Only the products go thr
       - **Own sheets after that:** when the alpha of all effects is at least 0.67, each annotator labels their own sheet. If it is lower, clarify the rules in the `petunjuk` sheet, clear the `bersama` sheet, and label it again.
       - You can label gradually and rerun CODE 7B to see the progress in LABELING PROGRESS.
 14. **Sentiment Gold, pass 2** (CODE 7B) — Run All again. Every check in CHECK LABELING FILE and CHECK FINAL LABEL must show 0. The final label of the `bersama` sheet is the majority vote (at least 2 of 3 annotators). When all three annotators chose a different label for an effect, that effect has no majority and is left empty. The other reviews keep the labels of the annotator who labeled them. `sentiment_gold_final.csv` is only saved when the alpha of all effects is at least 0.67 and every annotator's own sheet is complete. It holds all 22,258 reviews, with empty effect columns for the unlabeled ones. The LABEL ANALYSIS section at the end summarizes the final labels: the label counts per effect, the empty effects, the number of effects per review, and the label rates per part.
+15. **Sentiment Classification** (CODE 8B `Sentiment_Classification.ipynb`) — Run All first with `TRIAL_MODE = True`. This runs every step on a small part of the data with 2 epochs and saves the result to `trial_run/`, so you can check that everything works (every check must show 0) and see how long one combination takes. Then set `TRIAL_MODE = False` and Run All again for the real run. The reviews with complete labels from CODE 7B are split into train, validation, and test (70:15:15, stratified). Each of the three stages has its own IndoBERT model (`indolem/indobert-base-uncased`, trained in FP32): stage 1 decides whether a review discusses any effect, stage 2 decides which effects it discusses (yes or no for each effect), and stage 3 decides whether each discussed effect is positive or negative, with the input `[EFEK] {efek}: {review}`. Every stage is trained with six combinations of learning rate (2e-5, 3e-5, 5e-5) and batch size (16, 32), for up to 4 epochs each. The baseline is learning rate 2e-5 with batch size 16, and the combination with the highest validation macro-F1 is chosen as the best. Training can be resumed: combinations already recorded in `tuning_results.csv` are skipped when the notebook runs again. The baseline and best models are evaluated on the test set, per stage and with the three stages combined. The best models then predict the unlabeled reviews and the empty effects, while the manual labels stay as they are. Everything is saved to `data_after_sentiment_classification/`. If the GPU runs out of memory, set `MICRO_BATCH_SIZE = 8`.
