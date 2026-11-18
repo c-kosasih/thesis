@@ -1,6 +1,6 @@
 # Skincare Product Analysis
 
-Code and data for SkinSense, a skincare product analysis system built on product and review data from SOCO by Sociolla, plus ingredient data from EWG Skin Deep and INCIDecoder. It currently covers data preparation, from scraping to text normalization (CODE 1 to CODE 6), claim verification (CODE 7A and CODE 8A), and sentiment classification (CODE 7B and CODE 8B). The recommendation part (CODE 9) is not included yet.
+Code and data for SkinSense, a skincare product analysis system built on product and review data from SOCO by Sociolla, plus ingredient data from EWG Skin Deep and INCIDecoder. It currently covers data preparation, from scraping to text normalization (CODE 1 to CODE 6), claim verification (CODE 7A and CODE 8A), sentiment classification (CODE 7B and CODE 8B), and the recommender system (CODE 9). The AI summary (CODE 10) is not included yet.
 
 Each folder holds its notebooks together with the data they produce, so the result of every step is available without rerunning it. You don't have to run everything from the start: each notebook reads the files saved by the steps before it, so you can start from any step.
 
@@ -61,16 +61,24 @@ Each folder holds its notebooks together with the data they produce, so the resu
 │       ├── claim_verification_ewg_inci.csv
 │       └── evaluation_metrics.csv
 │
-└── Sentiment Classification/
-    ├── Sentiment_Classification.ipynb          # CODE 8B: multi-stage sentiment classification with IndoBERT
-    └── data_after_sentiment_classification/    # output of CODE 8B
-        ├── tuning_results.csv
-        ├── training_history.csv
-        ├── evaluation_per_stage.csv
-        ├── evaluation_per_class.csv
-        ├── evaluation_cascade.csv
-        ├── test_predictions.csv
-        └── sentiment_classification.csv
+├── Sentiment Classification/
+│   ├── Sentiment_Classification.ipynb          # CODE 8B: multi-stage sentiment classification with IndoBERT
+│   └── data_after_sentiment_classification/    # output of CODE 8B
+│       ├── tuning_results.csv
+│       ├── training_history.csv
+│       ├── evaluation_per_stage.csv
+│       ├── evaluation_per_class.csv
+│       ├── evaluation_cascade.csv
+│       ├── test_predictions.csv
+│       └── sentiment_classification.csv
+│
+└── Recommender System/
+    ├── Recommender_System.ipynb                # CODE 9: verified capabilities, effect cards, and content-based filtering
+    └── data_after_recommender_system/          # output of CODE 9
+        ├── product_profile.csv
+        ├── effect_cards.csv
+        ├── review_examples.csv
+        └── recommendations.csv
 ```
 
 ## ⚙️ Before you run
@@ -83,7 +91,7 @@ Each folder holds its notebooks together with the data they produce, so the resu
 
 ## ▶️ Run order
 
-Every notebook reads the output of the steps before it. Only the products go through CODE 4 and CODE 5. CODE 6 reads the reviews straight from the translation output of CODE 3. CODE 7A and CODE 8A read the products and ingredients saved by CODE 6, and CODE 8A also reads the final labels from CODE 7A. CODE 7B reads the reviews and products saved by CODE 6, and CODE 8B reads the final labels from CODE 7B.
+Every notebook reads the output of the steps before it. Only the products go through CODE 4 and CODE 5. CODE 6 reads the reviews straight from the translation output of CODE 3. CODE 7A and CODE 8A read the products and ingredients saved by CODE 6, and CODE 8A also reads the final labels from CODE 7A. CODE 7B reads the reviews and products saved by CODE 6, and CODE 8B reads the final labels from CODE 7B. CODE 9 reads the products and ingredients saved by CODE 6, the claim verification result of CODE 8A (`ewg_inci`), and the sentiment labels of CODE 8B.
 
 ### Data Preparation
 1. **Data Scraping** (CODE 1 `Scraping_Products.ipynb`, CODE 2 `Scraping_Reviews.ipynb`) — CODE 1 scrapes the product details (name, brand, description, ingredients, rating) of five categories on SOCO by Sociolla (Toner, Essence, Face Wash, Face Cream & Lotion, Sunscreen) into one CSV per category in `output_per_category/`. CODE 2 merges those files into `products_data.csv`, then scrapes every review of each product into `reviews_data.csv`. Both notebooks drive Google Chrome with Selenium.
@@ -116,3 +124,6 @@ Every notebook reads the output of the steps before it. Only the products go thr
       - You can label gradually and rerun CODE 7B to see the progress in LABELING PROGRESS.
 14. **Sentiment Gold, pass 2** (CODE 7B) — Run All again. Every check in CHECK LABELING FILE and CHECK FINAL LABEL must show 0. The final label of the `bersama` sheet is the majority vote (at least 2 of 3 annotators). When all three annotators chose a different label for an effect, that effect has no majority and is left empty. The other reviews keep the labels of the annotator who labeled them. `sentiment_gold_final.csv` is only saved when the alpha of all effects is at least 0.67 and every annotator's own sheet is complete. It holds all 22,258 reviews, with empty effect columns for the unlabeled ones. The LABEL ANALYSIS section at the end summarizes the final labels: the label counts per effect, the empty effects, the number of effects per review, and the label rates per part.
 15. **Sentiment Classification** (CODE 8B `Sentiment_Classification.ipynb`) — Run All first with `TRIAL_MODE = True`. This runs every step on a small part of the data with 2 epochs and saves the result to `trial_run/`, so you can check that everything works (every check must show 0) and see how long one combination takes. Then set `TRIAL_MODE = False` and Run All again for the real run. The reviews with complete labels from CODE 7B are split into train, validation, and test (70:15:15, stratified). Each of the three stages has its own IndoBERT model (`indolem/indobert-base-uncased`, trained in FP32): stage 1 decides whether a review discusses any effect, stage 2 decides which effects it discusses (yes or no for each effect), and stage 3 decides whether each discussed effect is positive or negative, with the input `[EFEK] {efek}: {review}`. Every stage is trained with six combinations of learning rate (2e-5, 3e-5, 5e-5) and batch size (16, 32), for up to 4 epochs each. The baseline is learning rate 2e-5 with batch size 16, and the combination with the highest validation macro-F1 is chosen as the best. Training can be resumed: combinations already recorded in `tuning_results.csv` are skipped when the notebook runs again. The baseline and best models are evaluated on the test set, per stage and with the three stages combined. The best models then predict the unlabeled reviews and the empty effects, while the manual labels stay as they are. Everything is saved to `data_after_sentiment_classification/`. If the GPU runs out of memory, set `MICRO_BATCH_SIZE = 8`. The real run is already done. Training all 18 combinations took about **9.4 hours** on a GeForce GTX 1650, and the results are in `data_after_sentiment_classification/`, so there is no need to run this notebook again to use them. The trained models are not in this repository, so running it again right after cloning skips every combination (they are already recorded in `tuning_results.csv`) and then stops at CHECK TUNING with an error. To train from the start, delete `data_after_sentiment_classification/` and `models/` first.
+
+### Recommender System
+16. **Recommender System** (CODE 9 `Recommender_System.ipynb`) — Run All. It uses no model, so it finishes in a few seconds. For every product and effect, it counts the positive and negative reviews from CODE 8B (manual and predicted labels together), and an effect is rated positive when its positive reviews outnumber its negative ones. The Verified Capabilities of a product are the effects verified by CODE 8A (`ewg_inci`) that are also rated positive. Each effect card gets up to three example reviews: the number of positive and negative examples follows their percentages, manual labels come before predicted ones, reviews about that effect alone come first, and the rest is picked at random with a fixed seed. Similar products are found with content-based filtering, Match = 100 × (0.6 × cosine similarity of the Verified Capabilities + 0.3 × same category + 0.1 × same brand), among the products that have no more Moderate and High ingredients than the product being viewed, and the top 4 are kept, or fewer when not enough products pass. Every check must show 0. Everything is saved to `data_after_recommender_system/`, so the website only needs to read these files.
