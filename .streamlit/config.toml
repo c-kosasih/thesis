@@ -1,0 +1,15 @@
+[theme]
+base = "light"
+primaryColor = "#000000"
+backgroundColor = "#F3F3F3"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#2E2E2E"
+font = "'Instrument Sans':https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap, sans-serif"
+codeFont = "'Geist Mono':https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&display=swap, monospace"
+baseRadius = "8px"
+buttonRadius = "6px"
+borderColor = "#E6E6E6"
+showWidgetBorder = true
+
+[browser]
+gatherUsageStats = false

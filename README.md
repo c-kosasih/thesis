@@ -1,6 +1,6 @@
 # Skincare Product Analysis
 
-Code and data for SkinSense, a skincare product analysis system built on product and review data from SOCO by Sociolla, plus ingredient data from EWG Skin Deep and INCIDecoder. It currently covers data preparation, from scraping to text normalization (CODE 1 to CODE 6), claim verification (CODE 7A and CODE 8A), sentiment classification (CODE 7B and CODE 8B), the recommender system (CODE 9), and the AI summary (CODE 10).
+Code and data for SkinSense, a skincare product analysis system built on product and review data from SOCO by Sociolla, plus ingredient data from EWG Skin Deep and INCIDecoder. It currently covers data preparation, from scraping to text normalization (CODE 1 to CODE 6), claim verification (CODE 7A and CODE 8A), sentiment classification (CODE 7B and CODE 8B), the recommender system (CODE 9), the AI summary (CODE 10), and the website.
 
 Each folder holds its notebooks together with the data they produce, so the result of every step is available without rerunning it. You don't have to run everything from the start: each notebook reads the files saved by the steps before it, so you can start from any step.
 
@@ -9,6 +9,8 @@ Each folder holds its notebooks together with the data they produce, so the resu
 ```
 .
 ├── README.md
+├── .streamlit/
+│   └── config.toml                             # website theme (colors and fonts)
 ├── Data Scraping/
 │   ├── Scraping_Products.ipynb                 # CODE 1: scrape product details per category
 │   ├── Scraping_Reviews.ipynb                  # CODE 2: merge the categories, then scrape reviews
@@ -72,16 +74,20 @@ Each folder holds its notebooks together with the data they produce, so the resu
 │       ├── test_predictions.csv
 │       └── sentiment_classification.csv
 │
-└── Recommender System/
-    ├── Recommender_System.ipynb                # CODE 9: verified capabilities, effect cards, and content-based filtering
-    ├── AI_Summary.ipynb                        # CODE 10: AI summary with an LLM
-    ├── data_after_recommender_system/          # output of CODE 9
-    │   ├── product_profile.csv
-    │   ├── effect_cards.csv
-    │   ├── review_examples.csv
-    │   └── recommendations.csv
-    └── data_after_ai_summary/                  # output of CODE 10
-        └── ai_summary.csv
+├── Recommender System/
+│   ├── Recommender_System.ipynb                # CODE 9: verified capabilities, effect cards, and content-based filtering
+│   ├── AI_Summary.ipynb                        # CODE 10: AI summary with an LLM
+│   ├── data_after_recommender_system/          # output of CODE 9
+│   │   ├── product_profile.csv
+│   │   ├── effect_cards.csv
+│   │   ├── review_examples.csv
+│   │   └── recommendations.csv
+│   └── data_after_ai_summary/                  # output of CODE 10
+│       └── ai_summary.csv
+│
+└── Website/
+    ├── app.py                                  # the SkinSense website (Streamlit)
+    └── requirements.txt                        # packages for the website
 ```
 
 ## ⚙️ Before you run
@@ -94,7 +100,7 @@ Each folder holds its notebooks together with the data they produce, so the resu
 
 ## ▶️ Run order
 
-Every notebook reads the output of the steps before it. Only the products go through CODE 4 and CODE 5. CODE 6 reads the reviews straight from the translation output of CODE 3. CODE 7A and CODE 8A read the products and ingredients saved by CODE 6, and CODE 8A also reads the final labels from CODE 7A. CODE 7B reads the reviews and products saved by CODE 6, and CODE 8B reads the final labels from CODE 7B. CODE 9 reads the products and ingredients saved by CODE 6, the claim verification result of CODE 8A (`ewg_inci`), and the sentiment labels of CODE 8B. CODE 10 reads the product profile and effect cards saved by CODE 9, and the products and ingredients saved by CODE 6.
+Every notebook reads the output of the steps before it. Only the products go through CODE 4 and CODE 5. CODE 6 reads the reviews straight from the translation output of CODE 3. CODE 7A and CODE 8A read the products and ingredients saved by CODE 6, and CODE 8A also reads the final labels from CODE 7A. CODE 7B reads the reviews and products saved by CODE 6, and CODE 8B reads the final labels from CODE 7B. CODE 9 reads the products and ingredients saved by CODE 6, the claim verification result of CODE 8A (`ewg_inci`), and the sentiment labels of CODE 8B. CODE 10 reads the product profile and effect cards saved by CODE 9, and the products and ingredients saved by CODE 6. The website reads the files of CODE 9 and CODE 10, plus the products and ingredients saved by CODE 6.
 
 ### Data Preparation
 1. **Data Scraping** (CODE 1 `Scraping_Products.ipynb`, CODE 2 `Scraping_Reviews.ipynb`) — CODE 1 scrapes the product details (name, brand, description, ingredients, rating) of five categories on SOCO by Sociolla (Toner, Essence, Face Wash, Face Cream & Lotion, Sunscreen) into one CSV per category in `output_per_category/`. CODE 2 merges those files into `products_data.csv`, then scrapes every review of each product into `reviews_data.csv`. Both notebooks drive Google Chrome with Selenium.
@@ -130,4 +136,7 @@ Every notebook reads the output of the steps before it. Only the products go thr
 
 ### Recommender System
 16. **Recommender System** (CODE 9 `Recommender_System.ipynb`) — Run All. It uses no model, so it finishes in a few seconds. For every product and effect, it counts the positive and negative reviews from CODE 8B (manual and predicted labels together), and an effect is rated positive when its positive reviews outnumber its negative ones. The Verified Capabilities of a product are the effects verified by CODE 8A (`ewg_inci`) that are also rated positive. Each effect card gets up to three example reviews: the number of positive and negative examples follows their percentages, manual labels come before predicted ones, reviews about that effect alone come first, and the rest is picked at random with a fixed seed. Similar products are found with content-based filtering, Match = 100 × (0.6 × cosine similarity of the Verified Capabilities + 0.3 × same category + 0.1 × same brand), among the products that have no more Moderate and High ingredients than the product being viewed, and the top 4 are kept, or fewer when not enough products pass. Every check must show 0. Everything is saved to `data_after_recommender_system/`.
-17. **AI Summary** (CODE 10 `AI_Summary.ipynb`) — Run All. For every product, it builds a fact sheet from the output of CODE 9: the effects that the description claims, each with its status (a Verified Capability, not supported by the ingredients, or supported by the ingredients but not rated positive) and its review numbers, plus the number of Low, Moderate, and High ingredients and the names of the High ones. From that fact sheet only, an LLM (`openai/gpt-oss-120b` on Groq, the same as CODE 4) writes a summary of three to five sentences in Indonesian, guided by three made-up examples: the Verified Capabilities, the claims that are not Verified Capabilities and why, and the ingredient safety. Every summary is checked automatically: each part must have the right number of sentences, every number must appear in the fact sheet, every effect must be in the right part, and no ingredient other than the High ones may be named. When a check fails, the LLM is told what is wrong and writes the summary again, up to three attempts. Each summary is saved as soon as it passes, so running the notebook again skips the products that already have one and doesn't call the LLM; delete `ai_summary.csv` to make them all again. LLM output is not guaranteed to be identical between runs. Every check must show 0. The summaries are saved to `data_after_ai_summary/`, and together with the files of CODE 9 they are all the website needs.
+17. **AI Summary** (CODE 10 `AI_Summary.ipynb`) — Run All. For every product, it builds a fact sheet from the output of CODE 9: the effects that the description claims, each with its status (a Verified Capability, not supported by the ingredients, or supported by the ingredients but not rated positive) and its review numbers, plus the number of Low, Moderate, and High ingredients and the names of the High ones. From that fact sheet only, an LLM (`openai/gpt-oss-120b` on Groq, the same as CODE 4) writes a summary of three to five sentences in Indonesian, guided by three made-up examples: the Verified Capabilities, the claims that are not Verified Capabilities and why, and the ingredient safety. Every summary is checked automatically: each part must have the right number of sentences, every number must appear in the fact sheet, every effect must be in the right part, and no ingredient other than the High ones may be named. When a check fails, the LLM is told what is wrong and writes the summary again, up to three attempts. Each summary is saved as soon as it passes, so running the notebook again skips the products that already have one and doesn't call the LLM; delete `ai_summary.csv` to make them all again. LLM output is not guaranteed to be identical between runs. Every check must show 0. The summaries are saved to `data_after_ai_summary/`.
+
+### Website
+18. **Website** (`Website/app.py`) — the SkinSense website, built with Streamlit. The catalog page lists every product with its ingredient safety and Verified Capabilities, with a search by product name or brand and filters for category and Verified Capability. When nothing matches, it says so and suggests the closest spelling. The product page shows the ingredient safety (with the ingredient names per hazard level), the Verified Capabilities, the AI summary, the five effect cards (claim checks, review percentages, and example reviews), and the similar products. The About page explains how all of this is decided. The website runs no model: it only reads the four files of CODE 9, `ai_summary.csv` of CODE 10, and `products_normalized.csv` and `ingredients_data_normalized.csv` of CODE 6 (for the SOCO link and the ingredient names). Install its packages with `python -m pip install -r Website/requirements.txt` (Streamlit 1.65.0 is the newest version that still runs on Python 3.10), then run `python -m streamlit run Website/app.py` from the folder of this `README.md`, so that the theme in `.streamlit/config.toml` is used. Writing `python -m` in both commands makes sure they use the same Python, so an older Streamlit installed in another Python can't run the website. The website opens at `http://localhost:8501`. To put it online, deploy this repository on Streamlit Community Cloud with `Website/app.py` as the main file path.
